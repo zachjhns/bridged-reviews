@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bridged Reviews</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M4 22 Q16 6 28 22' fill='none' stroke='%230f766e' stroke-width='4' stroke-linecap='round'/><circle cx='4' cy='22' r='3' fill='%230f766e'/><circle cx='28' cy='22' r='3' fill='%230f766e'/></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M4 22 Q16 6 28 22" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="4" cy="22" r="3" fill="currentColor"/><circle cx="28" cy="22" r="3" fill="currentColor"/></svg>
+      <div>
+        <h1>Bridged Reviews</h1>
+        <p>A star rating built only from what reviewers in different camps agree on</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <label class="toggle"><input type="checkbox" id="reveal"> Show simulator ground truth</label>
+      <button class="ghost" id="reset">Reset store</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <input type="search" id="filter" placeholder="Filter products…" aria-label="Filter products">
+      <div class="list-head"><span>Product</span><span>Raw</span><span>Bridged</span></div>
+      <ul id="product-list"></ul>
+      <p class="sidebar-foot" id="store-stats"></p>
+    </aside>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-title">
+          <span class="eyebrow" id="p-brand"></span>
+          <h2 id="p-name">Loading…</h2>
+          <span class="muted" id="p-count"></span>
+        </div>
+        <div class="scores">
+          <div class="score raw">
+            <span class="label">Store rating <small>(plain average)</small></span>
+            <span class="num" id="s-raw">–</span>
+            <span class="stars" id="st-raw"></span>
+            <span class="delta" id="d-raw"></span>
+          </div>
+          <div class="score bridged">
+            <span class="label">Bridged rating</span>
+            <span class="num" id="s-bridged">–</span>
+            <span class="stars" id="st-bridged"></span>
+            <span class="delta" id="d-bridged"></span>
+          </div>
+          <div class="score truth gt">
+            <span class="label">True quality <small>(simulator only)</small></span>
+            <span class="num" id="s-true">–</span>
+            <span class="stars" id="st-true"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card attack">
+        <div class="card-head">
+          <h3>Attack this product</h3>
+          <p class="muted">Inject fake reviews and watch the model refit live.</p>
+        </div>
+        <div class="attack-controls">
+          <label class="field">
+            <span>Fake reviews <b id="n-label">200</b></span>
+            <input type="range" id="n-reviews" min="25" max="600" step="25" value="200">
+          </label>
+          <div class="field">
+            <span>Who writes them</span>
+            <div class="seg" id="mode">
+              <button data-v="ring" class="on" title="Accounts that also promote the brand's other products, attack competitors and post camouflage reviews">Review ring</button>
+              <button data-v="sockpuppet" title="Brand-new accounts with a single review each">One-shot accounts</button>
+            </div>
+          </div>
+          <div class="field">
+            <span>Direction</span>
+            <div class="seg" id="direction">
+              <button data-v="boost" class="on">Boost ★★★★★</button>
+              <button data-v="bomb">Review-bomb ★</button>
+            </div>
+          </div>
+          <button class="primary" id="go">Inject attack</button>
+        </div>
+        <div class="result" id="result" hidden></div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <div class="card-head">
+            <h3>Where the store rating comes from</h3>
+            <p class="muted">The plain average, broken into the bridged score plus each effect the model separates out.</p>
+          </div>
+          <svg id="waterfall" class="chart" role="img" aria-label="Waterfall from bridged to raw rating"></svg>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h3>Reviewer map</h3>
+            <p class="muted">Each dot is a reviewer of this product, placed by their learned viewpoint. Reviewers in the same camp cluster together.</p>
+          </div>
+          <svg id="map" class="chart" role="img" aria-label="Scatter of reviewers in viewpoint space"></svg>
+          <div class="legend" id="map-legend"></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>Reviews per week</h3>
+          <p class="muted">Bursts of same-star reviews are the classic sign of a campaign.</p>
+        </div>
+        <svg id="timeline" class="chart wide" role="img" aria-label="Weekly review counts stacked by star rating"></svg>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>Latest reviews</h3>
+          <p class="muted">“Camp” is how many stars of a rating are explained by the reviewer's viewpoint, and so are left out of the bridged score.</p>
+        </div>
+        <ul id="reviews" class="reviews"></ul>
+      </section>
+
+      <section class="card how">
+        <h3>How it works</h3>
+        <p>Every rating is modelled as</p>
+        <p class="formula">rating<sub>ij</sub> ≈ μ + a<sub>i</sub> + b<sub>j</sub> + u<sub>i</sub>·v<sub>j</sub></p>
+        <ul>
+          <li><b>a<sub>i</sub></b>: how lenient reviewer <i>i</i> is with everything.</li>
+          <li><b>u<sub>i</sub>·v<sub>j</sub></b>: agreement that depends on the reviewer's camp. Taste groups and paid review rings each form their own direction in this space.</li>
+          <li><b>b<sub>j</sub></b>: what's left, the part of product <i>j</i>'s rating that every camp agrees on. The <b>bridged rating</b> is μ + b<sub>j</sub>.</li>
+        </ul>
+        <p>Intercepts are penalised more heavily than viewpoint factors, so a coordinated block of ratings is cheaper to explain as a camp than as real quality. That's the “bridging” idea behind X's Community Notes, applied to store reviews. Accounts with fewer than 3 reviews don't count, because they have no history that would show which camp they belong to.</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
